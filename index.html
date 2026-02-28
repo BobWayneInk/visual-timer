@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Visual Timer V2</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --ring-bg: #1f2937;
+      --work: #22c55e;
+      --break: #60a5fa;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --shadow: rgba(0,0,0,.35);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at 30% 20%, #1f2937, var(--bg));
+      color: var(--text);
+      font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+    }
+
+    .app {
+      width: min(94vw, 620px);
+      background: rgba(17,24,39,.9);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 22px;
+      box-shadow: 0 20px 50px var(--shadow);
+      padding: 18px;
+      backdrop-filter: blur(6px);
+    }
+
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .title {
+      font-size: 1rem;
+      color: var(--muted);
+      letter-spacing: .03em;
+    }
+
+    .mode-badge {
+      font-size: .85rem;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 999px;
+      padding: 6px 10px;
+      color: var(--text);
+      background: rgba(255,255,255,.03);
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+      align-items: center;
+    }
+
+    .preset, .btn, .toggle-btn {
+      background: #111827;
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 12px;
+      padding: 10px 12px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: transform .05s ease, border-color .15s ease, background .15s ease;
+    }
+    .preset:hover, .btn:hover, .toggle-btn:hover { border-color: rgba(255,255,255,.25); }
+    .preset:active, .btn:active, .toggle-btn:active { transform: translateY(1px); }
+
+    .preset.active {
+      border-color: rgba(96,165,250,.7);
+      box-shadow: 0 0 0 3px rgba(96,165,250,.15);
+    }
+
+    .timer-wrap {
+      display: grid;
+      place-items: center;
+      margin: 8px 0 14px;
+    }
+
+    .ring-box {
+      position: relative;
+      width: min(72vw, 360px);
+      height: min(72vw, 360px);
+    }
+
+    svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+      transform: rotate(-90deg);
+      filter: drop-shadow(0 6px 16px rgba(0,0,0,.35));
+    }
+
+    .ring-bg { stroke: var(--ring-bg); }
+    .ring-progress { stroke-linecap: round; }
+
+    .center {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 18px;
+    }
+
+    .phase {
+      font-size: .95rem;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .time {
+      font-size: clamp(2.1rem, 8vw, 4rem);
+      line-height: 1;
+      font-weight: 800;
+      letter-spacing: .02em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .status {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: .95rem;
+      min-height: 1.2em;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .btn.primary {
+      background: linear-gradient(180deg, #1d4ed8, #1e40af);
+      border-color: rgba(255,255,255,.14);
+    }
+
+    .btn.warn {
+      background: linear-gradient(180deg, #b91c1c, #991b1b);
+      border-color: rgba(255,255,255,.14);
+    }
+
+    .custom {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .custom input {
+      width: 100%;
+      background: #0b1220;
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 1rem;
+      outline: none;
+    }
+    .custom input:focus {
+      border-color: rgba(96,165,250,.7);
+      box-shadow: 0 0 0 3px rgba(96,165,250,.18);
+    }
+
+    .toggles {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      background: rgba(255,255,255,.02);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: .92rem;
+    }
+
+    .toggle label {
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      justify-content: space-between;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .stat {
+      border: 1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.02);
+      border-radius: 12px;
+      padding: 10px;
+      text-align: center;
+    }
+    .stat .k { color: var(--muted); font-size: .8rem; }
+    .stat .v { font-weight: 700; margin-top: 4px; }
+
+    .footer {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: .84rem;
+      text-align: center;
+    }
+
+    .tiny { font-size: .78rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="top">
+      <div class="title">Visual Focus Timer V2</div>
+      <div id="modeBadge" class="mode-badge">Custom Timer</div>
+    </div>
+
+    <div class="row" id="presetRow">
+      <button class="preset" data-min="5">5 min</button>
+      <button class="preset" data-min="10">10 min</button>
+      <button class="preset" data-min="15">15 min</button>
+      <button class="preset" data-min="25">25 min</button>
+      <button class="preset" data-min="45">45 min</button>
+      <button class="preset" data-min="60">60 min</button>
+    </div>
+
+    <div class="row">
+      <button id="pomodoroBtn" class="toggle-btn">Pomodoro Mode: OFF</button>
+      <button id="nextPhaseBtn" class="toggle-btn">Skip to Next Phase</button>
+    </div>
+
+    <div class="timer-wrap">
+      <div class="ring-box">
+        <svg viewBox="0 0 240 240" aria-hidden="true">
+          <circle class="ring-bg" cx="120" cy="120" r="100" fill="none" stroke-width="18"></circle>
+          <circle id="progressRing" cx="120" cy="120" r="100" fill="none" stroke-width="18"></circle>
+        </svg>
+        <div class="center">
+          <div>
+            <div id="phaseLabel" class="phase">Work Session</div>
+            <div id="timeDisplay" class="time">25:00</div>
+            <div id="status" class="status">Ready</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="startPauseBtn" class="btn primary">Start</button>
+      <button id="resetBtn" class="btn">Reset</button>
+      <button id="stopBtn" class="btn warn">Stop</button>
+    </div>
+
+    <div class="custom">
+      <input id="minutesInput" type="number" min="1" max="240" step="1" value="25" placeholder="Minutes" />
+      <button id="setCustomBtn" class="btn">Set Minutes</button>
+    </div>
+
+    <div class="toggles">
+      <div class="toggle">
+        <label>
+          <span>Voice prompts</span>
+          <input id="voiceToggle" type="checkbox" checked />
+        </label>
+      </div>
+      <div class="toggle">
+        <label>
+          <span>Auto-start breaks</span>
+          <input id="autoBreakToggle" type="checkbox" checked />
+        </label>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="k">Cycle</div>
+        <div id="cycleDisplay" class="v">1</div>
+      </div>
+      <div class="stat">
+        <div class="k">Phase</div>
+        <div id="phaseShortDisplay" class="v">Work</div>
+      </div>
+      <div class="stat">
+        <div class="k">Completed Work Sessions</div>
+        <div id="completedDisplay" class="v">0</div>
+      </div>
+    </div>
+
+    <div class="footer">
+      Space = Start/Pause • R = Reset • N = Next Phase
+      <div class="tiny">Pomodoro uses 25 min work / 5 min break cycles.</div>
+    </div>
+  </div>
+
+  <script>
+    // ---------- Elements ----------
+    const ring = document.getElementById('progressRing');
+    const timeDisplay = document.getElementById('timeDisplay');
+    const statusEl = document.getElementById('status');
+    const startPauseBtn = document.getElementById('startPauseBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const minutesInput = document.getElementById('minutesInput');
+    const setCustomBtn = document.getElementById('setCustomBtn');
+    const presetButtons = document.querySelectorAll('.preset');
+    const pomodoroBtn = document.getElementById('pomodoroBtn');
+    const nextPhaseBtn = document.getElementById('nextPhaseBtn');
+    const voiceToggle = document.getElementById('voiceToggle');
+    const autoBreakToggle = document.getElementById('autoBreakToggle');
+    const phaseLabel = document.getElementById('phaseLabel');
+    const phaseShortDisplay = document.getElementById('phaseShortDisplay');
+    const cycleDisplay = document.getElementById('cycleDisplay');
+    const completedDisplay = document.getElementById('completedDisplay');
+    const modeBadge = document.getElementById('modeBadge');
+
+    // ---------- Ring setup ----------
+    const radius = 100;
+    const circumference = 2 * Math.PI * radius;
+    ring.style.strokeDasharray = `${circumference} ${circumference}`;
+    ring.style.strokeDashoffset = '0';
+
+    // ---------- State ----------
+    const POMO_WORK_MIN = 25;
+    const POMO_BREAK_MIN = 5;
+
+    let mode = 'custom'; // 'custom' | 'pomodoro'
+    let phase = 'work';  // 'work' | 'break'
+    let cycle = 1;
+    let completedWorkSessions = 0;
+
+    let totalSeconds = POMO_WORK_MIN * 60;
+    let remainingSeconds = totalSeconds;
+
+    let intervalId = null;
+    let running = false;
+    let endTime = null;
+
+    let pendingAutoStart = false;
+    let pendingAutoTimer = null;
+
+    // ---------- Helpers ----------
+    function formatTime(sec) {
+      const s = Math.max(0, Math.floor(sec));
+      const m = Math.floor(s / 60);
+      const r = s % 60;
+      return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`;
+    }
+
+    function setStatus(text) {
+      statusEl.textContent = text;
+    }
+
+    function currentPhaseName() {
+      return phase === 'work' ? 'Work Session' : 'Break Time';
+    }
+
+    function phaseShort() {
+      return phase === 'work' ? 'Work' : 'Break';
+    }
+
+    function speak(text) {
+      if (!voiceToggle.checked) return;
+      if (!('speechSynthesis' in window)) return;
+
+      try {
+        // Cancel overlapping speech
+        window.speechSynthesis.cancel();
+
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.rate = 1.0;
+        utter.pitch = 1.0;
+        utter.volume = 1.0;
+        window.speechSynthesis.speak(utter);
+      } catch (e) {
+        // fail quietly
+      }
+    }
+
+    function chime(type = 'normal') {
+      // Tiny built-in chime; browser may require prior interaction (which user has)
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const now = ctx.currentTime;
+
+        const notes = type === 'done'
+          ? [660, 880, 1046]
+          : [523, 659];
+
+        notes.forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.0001, now + i * 0.12);
+          gain.gain.exponentialRampToValueAtTime(0.04, now + i * 0.12 + 0.01);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.12 + 0.11);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + i * 0.12);
+          osc.stop(now + i * 0.12 + 0.12);
+        });
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    function getPhaseColor(progressFraction) {
+      if (phase === 'break') {
+        // blue shades for break
+        if (progressFraction > 0.2) return '#60a5fa';
+        return '#38bdf8';
+      }
+
+      // work phase: green -> amber -> red
+      if (progressFraction > 0.5) return '#22c55e';
+      if (progressFraction > 0.2) return '#f59e0b';
+      return '#ef4444';
+    }
+
+    function setRing(progressFraction) {
+      const offset = circumference * (1 - progressFraction);
+      ring.style.strokeDashoffset = offset.toString();
+      ring.style.stroke = getPhaseColor(progressFraction);
+    }
+
+    function clearPendingAutoStart() {
+      pendingAutoStart = false;
+      if (pendingAutoTimer) {
+        clearTimeout(pendingAutoTimer);
+        pendingAutoTimer = null;
+      }
+    }
+
+    function updateUI() {
+      const frac = totalSeconds > 0 ? (remainingSeconds / totalSeconds) : 0;
+      setRing(frac);
+      timeDisplay.textContent = formatTime(remainingSeconds);
+      phaseLabel.textContent = currentPhaseName();
+      phaseShortDisplay.textContent = phaseShort();
+      cycleDisplay.textContent = String(cycle);
+      completedDisplay.textContent = String(completedWorkSessions);
+
+      modeBadge.textContent = mode === 'pomodoro' ? 'Pomodoro Mode (25/5)' : 'Custom Timer';
+      pomodoroBtn.textContent = `Pomodoro Mode: ${mode === 'pomodoro' ? 'ON' : 'OFF'}`;
+
+      document.title = `${formatTime(remainingSeconds)} • ${phaseShort()} • Visual Timer`;
+
+      // Disable custom/presets when pomodoro is active? (Keep usable but mode switches to custom when used)
+      // Keeping them active for flexibility.
+    }
+
+    function setTimerMinutes(mins, source = 'custom') {
+      clearInterval(intervalId);
+      intervalId = null;
+      running = false;
+      endTime = null;
+      clearPendingAutoStart();
+
+      const clamped = Math.min(240, Math.max(1, Number(mins) || 25));
+      totalSeconds = Math.round(clamped * 60);
+      remainingSeconds = totalSeconds;
+      startPauseBtn.textContent = 'Start';
+      minutesInput.value = clamped;
+
+      if (source === 'custom') {
+        mode = 'custom';
+        phase = 'work';
+        cycle = 1;
+      }
+
+      setStatus('Ready');
+      updateUI();
+    }
+
+    function setPomodoroPhase(nextPhase, options = {}) {
+      const { preserveRunning = false, autoStart = false } = options;
+
+      clearPendingAutoStart();
+
+      phase = nextPhase;
+      if (phase === 'work') {
+        totalSeconds = POMO_WORK_MIN * 60;
+        remainingSeconds = totalSeconds;
+      } else {
+        totalSeconds = POMO_BREAK_MIN * 60;
+        remainingSeconds = totalSeconds;
+      }
+
+      if (!preserveRunning) {
+        clearInterval(intervalId);
+        intervalId = null;
+        running = false;
+        endTime = null;
+        startPauseBtn.textContent = 'Start';
+      }
+
+      setStatus(autoStart ? 'Starting…' : 'Ready');
+      updateUI();
+
+      if (autoStart) {
+        toggleStartPause(true);
+      }
+    }
+
+    function activatePomodoro() {
+      mode = 'pomodoro';
+      phase = 'work';
+      cycle = 1;
+      clearPendingAutoStart();
+      setPomodoroPhase('work');
+      setStatus('Pomodoro ready (25 min work)');
+      speak('Pomodoro mode on. Work session ready.');
+      chime('normal');
+      updateUI();
+    }
+
+    function deactivatePomodoro() {
+      mode = 'custom';
+      phase = 'work';
+      cycle = 1;
+      clearPendingAutoStart();
+      setTimerMinutes(Number(minutesInput.value) || 25, 'custom');
+      setStatus('Custom timer ready');
+      speak('Pomodoro mode off.');
+      updateUI();
+    }
+
+    function tick() {
+      const now = Date.now();
+      remainingSeconds = Math.max(0, Math.round((endTime - now) / 1000));
+      updateUI();
+
+      if (remainingSeconds <= 0) {
+        clearInterval(intervalId);
+        intervalId = null;
+        running = false;
+        startPauseBtn.textContent = 'Start';
+        onTimerComplete();
+      }
+    }
+
+    function toggleStartPause(fromAuto = false) {
+      clearPendingAutoStart();
+
+      if (!running) {
+        running = true;
+        endTime = Date.now() + remainingSeconds * 1000;
+        intervalId = setInterval(tick, 250);
+        startPauseBtn.textContent = 'Pause';
+
+        if (!fromAuto) {
+          setStatus('Running');
+          chime('normal');
+        }
+        tick();
+      } else {
+        running = false;
+        clearInterval(intervalId);
+        intervalId = null;
+        startPauseBtn.textContent = 'Resume';
+        setStatus('Paused');
+        speak('Timer paused.');
+      }
+    }
+
+    function resetTimer() {
+      clearInterval(intervalId);
+      intervalId = null;
+      running = false;
+      endTime = null;
+      clearPendingAutoStart();
+
+      if (mode === 'pomodoro') {
+        if (phase === 'work') {
+          remainingSeconds = POMO_WORK_MIN * 60;
+          totalSeconds = remainingSeconds;
+        } else {
+          remainingSeconds = POMO_BREAK_MIN * 60;
+          totalSeconds = remainingSeconds;
+        }
+      } else {
+        remainingSeconds = totalSeconds;
+      }
+
+      startPauseBtn.textContent = 'Start';
+      setStatus('Ready');
+      updateUI();
+    }
+
+    function stopTimer() {
+      clearInterval(intervalId);
+      intervalId = null;
+      running = false;
+      endTime = null;
+      clearPendingAutoStart();
+
+      startPauseBtn.textContent = 'Start';
+
+      if (mode === 'pomodoro') {
+        setPomodoroPhase('work');
+        cycle = 1;
+        setStatus('Stopped (Pomodoro reset)');
+      } else {
+        remainingSeconds = totalSeconds;
+        setStatus('Stopped');
+      }
+
+      updateUI();
+    }
+
+    function scheduleAutoStartBreak() {
+      if (!autoBreakToggle.checked) return;
+
+      clearPendingAutoStart();
+      pendingAutoStart = true;
+      setStatus('Break starts in 3…');
+
+      let countdown = 3;
+      const announce = () => {
+        if (!pendingAutoStart) return;
+        setStatus(`Break starts in ${countdown}…`);
+        if (countdown === 3) speak('Work session complete. Break starts in 3 seconds.');
+        if (countdown > 0) {
+          countdown--;
+          pendingAutoTimer = setTimeout(announce, 1000);
+        } else {
+          pendingAutoStart = false;
+          pendingAutoTimer = null;
+          setPomodoroPhase('break', { autoStart: true });
+          setStatus('Break running');
+          speak('Break time. Five minutes.');
+          chime('normal');
+        }
+      };
+      announce();
+    }
+
+    function onTimerComplete() {
+      chime('done');
+
+      if (mode === 'custom') {
+        setStatus('Time is up ✅');
+        speak('Timer complete.');
+        return;
+      }
+
+      // Pomodoro mode transitions
+      if (phase === 'work') {
+        completedWorkSessions += 1;
+        setStatus('Work session complete ✅');
+        speak('Work session complete.');
+
+        // Transition to break
+        if (autoBreakToggle.checked) {
+          scheduleAutoStartBreak();
+        } else {
+          setPomodoroPhase('break');
+          setStatus('Break ready — press Start');
+          speak('Break is ready. Press start when you are ready.');
+        }
+      } else {
+        // Break complete -> next work cycle
+        cycle += 1;
+        setPomodoroPhase('work');
+        setStatus('Break complete ✅ Next work session ready');
+        speak(`Break complete. Cycle ${cycle}. Work session ready.`);
+      }
+
+      updateUI();
+    }
+
+    function nextPhase() {
+      clearPendingAutoStart();
+      clearInterval(intervalId);
+      intervalId = null;
+      running = false;
+      endTime = null;
+      startPauseBtn.textContent = 'Start';
+
+      if (mode !== 'pomodoro') {
+        setStatus('Next phase works in Pomodoro mode only');
+        return;
+      }
+
+      if (phase === 'work') {
+        setPomodoroPhase('break');
+        setStatus('Skipped to break');
+        speak('Skipped to break.');
+      } else {
+        cycle += 1;
+        setPomodoroPhase('work');
+        setStatus(`Skipped to work cycle ${cycle}`);
+        speak(`Skipped to work cycle ${cycle}.`);
+      }
+      updateUI();
+    }
+
+    // ---------- Events ----------
+    startPauseBtn.addEventListener('click', () => toggleStartPause(false));
+    resetBtn.addEventListener('click', resetTimer);
+    stopBtn.addEventListener('click', stopTimer);
+    nextPhaseBtn.addEventListener('click', nextPhase);
+
+    setCustomBtn.addEventListener('click', () => {
+      setTimerMinutes(minutesInput.value, 'custom');
+      speak('Custom timer set.');
+    });
+
+    minutesInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        setTimerMinutes(minutesInput.value, 'custom');
+        speak('Custom timer set.');
+      }
+    });
+
+    presetButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        presetButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        setTimerMinutes(btn.dataset.min, 'custom');
+      });
+    });
+
+    pomodoroBtn.addEventListener('click', () => {
+      if (mode === 'pomodoro') {
+        deactivatePomodoro();
+      } else {
+        presetButtons.forEach(b => b.classList.remove('active'));
+        activatePomodoro();
+      }
+    });
+
+    voiceToggle.addEventListener('change', () => {
+      setStatus(voiceToggle.checked ? 'Voice prompts ON' : 'Voice prompts OFF');
+      if (!voiceToggle.checked && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    });
+
+    autoBreakToggle.addEventListener('change', () => {
+      setStatus(autoBreakToggle.checked ? 'Auto-start breaks ON' : 'Auto-start breaks OFF');
+    });
+
+    window.addEventListener('keydown', (e) => {
+      const activeTag = document.activeElement?.tagName || '';
+      const typing = ['INPUT', 'TEXTAREA'].includes(activeTag);
+
+      if (e.code === 'Space' && !typing) {
+        e.preventDefault();
+        toggleStartPause(false);
+      }
+      if (e.key.toLowerCase() === 'r' && !typing) {
+        resetTimer();
+      }
+      if (e.key.toLowerCase() === 'n' && !typing) {
+        nextPhase();
+      }
+    });
+
+    // ---------- Init ----------
+    function init() {
+      mode = 'custom';
+      phase = 'work';
+      cycle = 1;
+      completedWorkSessions = 0;
+      totalSeconds = 25 * 60;
+      remainingSeconds = totalSeconds;
+      setStatus('Ready');
+      updateUI();
+    }
+
+    init();
+  </script>
+</body>
+</html>
